@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<link rel="stylesheet" href="styles.css">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mama Alex Supermarket</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;800&family=Figtree:wght@400;500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-mark">MM</span>
+    <div>
+      <h1>Mama Alex Supermarket</h1>
+      <p>Fresh groceries. Fair prices.</p>
+    </div>
+  </div>
+  <nav>
+    <a href="#dashboard">Dashboard</a>
+    <a href="#inventory">Inventory</a>
+    <a href="#sales">Sales</a>
+    <a href="#history">History</a>
+  </nav>
+</header>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <section id="dashboard">
+    <h2>Shop at a glance</h2>
+    <div class="stats">
+      <div class="stat"><span>Items in shop</span><strong id="stItems">0</strong></div>
+      <div class="stat"><span>Stock value (cost)</span><strong id="stCost">0</strong></div>
+      <div class="stat"><span>Stock value (selling)</span><strong id="stRetail">0</strong></div>
+      <div class="stat"><span>Expected profit</span><strong id="stProfit">0</strong></div>
+      <div class="stat warn"><span>Low or out of stock</span><strong id="stLow">0</strong></div>
+      <div class="stat good"><span>Total sales</span><strong id="stSales">0</strong></div>
+    </div>
+  </section>
+
+  <!-- INVENTORY -->
+  <section id="inventory">
+    <div class="section-head">
+      <h2>Inventory</h2>
+      <button class="btn primary" id="addBtn">Add item</button>
+    </div>
+    <div class="toolbar">
+      <input type="search" id="search" placeholder="Search items" aria-label="Search items">
+      <select id="filterCat" aria-label="Filter by category"></select>
+      <select id="filterStatus" aria-label="Filter by stock status">
+        <option value="">All stock levels</option>
+        <option value="ok">In stock</option>
+        <option value="low">Low stock</option>
+        <option value="out">Out of stock</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th><th>Category</th><th class="num">Cost</th><th class="num">Price</th>
+            <th class="num">Profit each</th><th class="num">Qty</th><th>Status</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="itemRows"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="emptyMsg" hidden>No items match. Clear the search or add a new item.</p>
+  </section>
+
+  <!-- SALES -->
+  <section id="sales">
+    <h2>New sale</h2>
+    <div class="sale-grid">
+      <div class="panel">
+        <label for="saleItem">Item</label>
+        <select id="saleItem"></select>
+        <label for="saleQty">Quantity</label>
+        <input type="number" id="saleQty" min="1" value="1">
+        <button class="btn primary" id="addToCart">Add to cart</button>
+      </div>
+      <div class="panel">
+        <h3>Cart</h3>
+        <ul id="cartList" class="cart"></ul>
+        <div class="total-row"><span>Total</span><strong id="cartTotal">KSh 0</strong></div>
+        <div class="row-actions">
+          <button class="btn ghost" id="clearCart">Clear cart</button>
+          <button class="btn primary" id="checkout">Complete sale</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HISTORY -->
+  <section id="history">
+    <div class="section-head">
+      <h2>Sales history</h2>
+      <button class="btn ghost" id="clearSales">Clear history</button>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Items sold</th><th class="num">Total</th><th class="num">Profit</th></tr></thead>
+        <tbody id="salesRows"></tbody>
+      </table>
+    </div>
+    <p class="empty" id="noSales">No sales yet. Completed sales will appear here.</p>
+  </section>
+
+</main>
+
+<!-- ADD / EDIT DIALOG -->
+<dialog id="itemDialog">
+  <form id="itemForm">
+    <h3 id="dialogTitle">Add item</h3>
+    <label for="fName">Item name</label>
+    <input id="fName" required>
+    <label for="fCat">Category</label>
+    <input id="fCat" list="catList" required>
+    <datalist id="catList"></datalist>
+    <div class="two">
+      <div><label for="fCost">Cost price (KSh)</label><input type="number" id="fCost" min="0" step="0.5" required></div>
+      <div><label for="fPrice">Selling price (KSh)</label><input type="number" id="fPrice" min="0" step="0.5" required></div>
+    </div>
+    <div class="two">
+      <div><label for="fQty">Quantity</label><input type="number" id="fQty" min="0" required></div>
+      <div><label for="fMin">Low-stock alert at</label><input type="number" id="fMin" min="0" value="10" required></div>
+    </div>
+    <p class="error" id="formError" hidden></p>
+    <div class="row-actions">
+      <button type="button" class="btn ghost" id="cancelBtn">Cancel</button>
+      <button type="submit" class="btn primary">Save item</button>
+    </div>
+  </form>
+</dialog>
+
+<footer>
+  <p>Mama Alex Supermarket. Prices in Kenya shillings (KSh).</p>
+</footer>
+
+<script>
+/* ---------- Data ---------- */
+const ITEMS_KEY = 'mm_items', SALES_KEY = 'mm_sales';
+const seed = [
+  {id:1, name:'Maize flour 2kg', cat:'Flour', cost:125, price:145, qty:40, min:10},
+  {id:2, name:'Sugar 1kg', cat:'Sugar and sweeteners', cost:150, price:170, qty:30, min:10},
+  {id:3, name:'Cooking oil 1L', cat:'Oils', cost:270, price:310, qty:18, min:8},
+  {id:4, name:'Rice 1kg', cat:'Grains', cost:140, price:170, qty:25, min:10},
+  {id:5, name:'Fresh milk 500ml', cat:'Dairy', cost:55, price:65, qty:6, min:12},
+  {id:6, name:'Bread 400g', cat:'Bakery', cost:55, price:65, qty:20, min:10},
+  {id:7, name:'Tea leaves 250g', cat:'Beverages', cost:110, price:135, qty:15, min:6},
+  {id:8, name:'Salt 500g', cat:'Spices', cost:25, price:35, qty:0, min:10},
+  {id:9, name:'Eggs tray (30)', cat:'Dairy', cost:420, price:480, qty:9, min:5},
+  {id:10, name:'Bar soap', cat:'Household', cost:80, price:100, qty:32, min:10}
+];
+function load(key, fallback) {
+  try { const v = JSON.parse(localStorage.getItem(key)); return v || fallback; }
+  catch (e) { return fallback; }
+}
+function save() {
+  try {
+    localStorage.setItem(ITEMS_KEY, JSON.stringify(items));
+    localStorage.setItem(SALES_KEY, JSON.stringify(sales));
+  } catch (e) {}
+}
+let items = load(ITEMS_KEY, seed);
+let sales = load(SALES_KEY, []);
+let cart = [];
+let editingId = null;
+
+const $ = id => document.getElementById(id);
+const kes = n => 'KSh ' + Number(n).toLocaleString('en-KE', {maximumFractionDigits: 2});
+const status = i => i.qty <= 0 ? 'out' : (i.qty <= i.min ? 'low' : 'ok');
+const statusText = {ok: 'In stock', low: 'Low stock', out: 'Out of stock'};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ---------- Render ---------- */
+function renderStats() {
+  $('stItems').textContent = items.length;
+  $('stCost').textContent = kes(items.reduce((s, i) => s + i.cost * i.qty, 0));
+  $('stRetail').textContent = kes(items.reduce((s, i) => s + i.price * i.qty, 0));
+  $('stProfit').textContent = kes(items.reduce((s, i) => s + (i.price - i.cost) * i.qty, 0));
+  $('stLow').textContent = items.filter(i => status(i) !== 'ok').length;
+  $('stSales').textContent = kes(sales.reduce((s, x) => s + x.total, 0));
+}
+
+function renderFilters() {
+  const cats = [...new Set(items.map(i => i.cat))].sort();
+  const current = $('filterCat').value;
+  $('filterCat').innerHTML = '<option value="">All categories</option>' +
+    cats.map(c => `<option>${esc(c)}</option>`).join('');
+  $('filterCat').value = cats.includes(current) ? current : '';
+  $('catList').innerHTML = cats.map(c => `<option value="${esc(c)}">`).join('');
+}
+
+function renderItems() {
+  const q = $('search').value.trim().toLowerCase();
+  const cat = $('filterCat').value, st = $('filterStatus').value;
+  const list = items.filter(i =>
+    (!q || i.name.toLowerCase().includes(q)) &&
+    (!cat || i.cat === cat) && (!st || status(i) === st));
+  $('itemRows').innerHTML = list.map(i => `
+    <tr>
+      <td><strong>${esc(i.name)}</strong></td>
+      <td>${esc(i.cat)}</td>
+      <td class="num">${kes(i.cost)}</td>
+      <td class="num">${kes(i.price)}</td>
+      <td class="num">${kes(i.price - i.cost)}</td>
+      <td class="num">${i.qty}</td>
+      <td><span class="badge ${status(i)}">${statusText[status(i)]}</span></td>
+      <td class="actions">
+        <button class="link" data-act="restock" data-id="${i.id}">Restock</button>
+        <button class="link" data-act="edit" data-id="${i.id}">Edit</button>
+        <button class="link danger" data-act="delete" data-id="${i.id}">Delete</button>
+      </td>
+    </tr>`).join('');
+  $('emptyMsg').hidden = list.length > 0;
+}
+
+function renderSaleSelect() {
+  const available = items.filter(i => i.qty > 0);
+  $('saleItem').innerHTML = available.length
+    ? available.map(i => `<option value="${i.id}">${esc(i.name)} (${kes(i.price)}, ${i.qty} left)</option>`).join('')
+    : '<option value="">Nothing in stock</option>';
+}
+
+function renderCart() {
+  $('cartList').innerHTML = cart.length ? cart.map((c, idx) => `
+    <li><span>${c.qty} x ${esc(c.name)}</span><span>${kes(c.qty * c.price)}
+    <button class="link danger" data-remove="${idx}">Remove</button></span></li>`).join('')
+    : '<li class="muted">The cart is empty. Pick an item and add it.</li>';
+  $('cartTotal').textContent = kes(cart.reduce((s, c) => s + c.qty * c.price, 0));
+}
+
+function renderSales() {
+  $('salesRows').innerHTML = sales.slice().reverse().map(s => `
+    <tr><td>${esc(s.date)}</td>
+    <td>${s.lines.map(l => `${l.qty} x ${esc(l.name)}`).join(', ')}</td>
+    <td class="num">${kes(s.total)}</td><td class="num">${kes(s.profit)}</td></tr>`).join('');
+  $('noSales').hidden = sales.length > 0;
+}
+
+function renderAll() {
+  renderStats(); renderFilters(); renderItems(); renderSaleSelect(); renderCart(); renderSales(); save();
+}
+
+/* ---------- Add / edit item ---------- */
+function openDialog(item) {
+  editingId = item ? item.id : null;
+  $('dialogTitle').textContent = item ? 'Edit item' : 'Add item';
+  $('fName').value = item ? item.name : '';
+  $('fCat').value = item ? item.cat : '';
+  $('fCost').value = item ? item.cost : '';
+  $('fPrice').value = item ? item.price : '';
+  $('fQty').value = item ? item.qty : '';
+  $('fMin').value = item ? item.min : 10;
+  $('formError').hidden = true;
+  $('itemDialog').showModal();
+}
+
+$('addBtn').onclick = () => openDialog(null);
+$('cancelBtn').onclick = () => $('itemDialog').close();
+
+$('itemForm').onsubmit = e => {
+  e.preventDefault();
+  const data = {
+    name: $('fName').value.trim(), cat: $('fCat').value.trim(),
+    cost: parseFloat($('fCost').value), price: parseFloat($('fPrice').value),
+    qty: parseInt($('fQty').value, 10), min: parseInt($('fMin').value, 10)
+  };
+  if (data.price < data.cost) {
+    $('formError').textContent = 'The selling price is lower than the cost price. Check both prices.';
+    $('formError').hidden = false;
+    return;
+  }
+  if (editingId) {
+    Object.assign(items.find(i => i.id === editingId), data);
+  } else {
+    data.id = Date.now();
+    items.push(data);
+  }
+  $('itemDialog').close();
+  renderAll();
+};
+
+/* ---------- Table actions ---------- */
+$('itemRows').onclick = e => {
+  const b = e.target.closest('button[data-act]');
+  if (!b) return;
+  const item = items.find(i => i.id === Number(b.dataset.id));
+  if (b.dataset.act === 'edit') openDialog(item);
+  if (b.dataset.act === 'delete' && confirm(`Delete "${item.name}"? This cannot be undone.`)) {
+    items = items.filter(i => i.id !== item.id);
+    cart = cart.filter(c => c.id !== item.id);
+    renderAll();
+  }
+  if (b.dataset.act === 'restock') {
+    const n = parseInt(prompt(`How many units of "${item.name}" did you receive?`, '10'), 10);
+    if (n > 0) { item.qty += n; renderAll(); }
+  }
+};
+
+['search', 'filterCat', 'filterStatus'].forEach(id => $(id).addEventListener('input', renderItems));
+
+/* ---------- Sales ---------- */
+$('addToCart').onclick = () => {
+  const item = items.find(i => i.id === Number($('saleItem').value));
+  const qty = parseInt($('saleQty').value, 10);
+  if (!item || !(qty > 0)) return;
+  const line = cart.find(c => c.id === item.id);
+  const already = line ? line.qty : 0;
+  if (already + qty > item.qty) {
+    alert(`Only ${item.qty} of "${item.name}" in stock.`);
+    return;
+  }
+  if (line) line.qty += qty;
+  else cart.push({id: item.id, name: item.name, price: item.price, cost: item.cost, qty});
+  $('saleQty').value = 1;
+  renderCart();
+};
+
+$('cartList').onclick = e => {
+  const b = e.target.closest('[data-remove]');
+  if (b) { cart.splice(Number(b.dataset.remove), 1); renderCart(); }
+};
+$('clearCart').onclick = () => { cart = []; renderCart(); };
+
+$('checkout').onclick = () => {
+  if (!cart.length) { alert('Add at least one item to the cart first.'); return; }
+  cart.forEach(c => { items.find(i => i.id === c.id).qty -= c.qty; });
+  sales.push({
+    date: new Date().toLocaleString('en-KE'),
+    lines: cart.map(c => ({name: c.name, qty: c.qty})),
+    total: cart.reduce((s, c) => s + c.qty * c.price, 0),
+    profit: cart.reduce((s, c) => s + c.qty * (c.price - c.cost), 0)
+  });
+  cart = [];
+  renderAll();
+};
+
+$('clearSales').onclick = () => {
+  if (sales.length && confirm('Clear all sales history?')) { sales = []; renderAll(); }
+};
+
+renderAll();
+</script>
+</body>
+</html>
